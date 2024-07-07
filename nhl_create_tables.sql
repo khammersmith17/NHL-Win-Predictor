@@ -1,22 +1,22 @@
 USE NHL;
-CREATE TABLE USERS(
-	user_id INT NOT NULL,
-	username VARCHAR(32) NOT NULL,
+CREATE TABLE IF NOT EXISTS USERS(
+    user_id INT NOT NULL,
+    username VARCHAR(32) NOT NULL,
     password VARCHAR(32) NOT NULL,
     api_key VARCHAR(64) NOT NULL,
     PRIMARY KEY (user_id)
 );
 
-USE NHL;
-CREATE TABLE GAME_PREDICTIONS(
+
+CREATE TABLE IF NOT EXISTS GAME_PREDICTIONS(
 	game_id INT NOT NULL,
     inference_score FLOAT NOT NULL,
     agg_method INT NOT NULL DEFAULT 10,
     PRIMARY KEY (game_id)
 );
 
-USE NHL;
-CREATE TABLE GAME_OUTCOMES(
+
+CREATE TABLE IF NOT EXISTS GAME_OUTCOMES(
 	game_id INT NOT NULL,
     home_team VARCHAR(32) NOT NULL,
     away_team VARCHAR(32) NOT NULL,
@@ -26,17 +26,17 @@ CREATE TABLE GAME_OUTCOMES(
     PRIMARY KEY (game_id)
 );
 
-USE NHL;
-CREATE TABLE TEAMS(
+
+CREATE TABLE IF NOT EXISTS TEAMS(
 	team_id int NOT NULL,
     team_name VARCHAR(32) NOT NULL,
     team_code VARCHAR(5) NOT NULL,
     PRIMARY KEY (team_id)
 );
 
-USE NHL;
-CREATE TABLE RAW_GAME_STATS(
-	team_id int NOT NULL,
+
+CREATE TABLE IF NOT EXISTS RAW_GAME_STATS(
+    team_id int NOT NULL,
     game_date DATE NOT NULL,
     blockedShotAttemptsFor FLOAT NOT NULL,
     corsiPercentage FLOAT NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE RAW_GAME_STATS(
     highDangerShotsFor FLOAT NOT NULL,
     highDangerxGoalsFor FLOAT NOT NULL,
     hitsFor FLOAT NOT NULL,
-	lowDangerGoalsFor INT NOT NULL,
+    lowDangerGoalsFor INT NOT NULL,
     lowDangerShotsFor INT NOT NULL,
     lowDangerxGoalsFor FLOAT NOT NULL,
     mediumDangerGoalsFor INT NOT NULL,
@@ -91,9 +91,9 @@ CREATE TABLE RAW_GAME_STATS(
     xReboundsFor FLOAT NOT NULL
 );
 
-USE NHL;
-CREATE TABLE AVG_GAME_STATS(
-	team_id int NOT NULL,
+
+CREATE TABLE IF NOT EXISTS AVG_GAME_STATS(
+    team_id int NOT NULL,
     game_date DATE NOT NULL,
     write_date DATE NOT NULL,
     agg_method INT NOT NULL DEFAULT 10,
@@ -111,7 +111,7 @@ CREATE TABLE AVG_GAME_STATS(
     highDangerShotsFor FLOAT NOT NULL,
     highDangerxGoalsFor FLOAT NOT NULL,
     hitsFor FLOAT NOT NULL,
-	lowDangerGoalsFor INT NOT NULL,
+    lowDangerGoalsFor INT NOT NULL,
     lowDangerShotsFor INT NOT NULL,
     lowDangerxGoalsFor FLOAT NOT NULL,
     mediumDangerGoalsFor INT NOT NULL,
