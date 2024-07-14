@@ -78,12 +78,30 @@ def get_full_dataset(year_cut: str=None):
         df = df[df.gameDate_x > pd.to_datetime(self._date_filter, format="%Y-%m-%d")]
         return df
 
-def generate_sql(table: str="raw"):
-    meta = "team_id, game_date," if table == "raw" else "team_id, write_date, agg_method,"
-    num_args = 52 if table == "raw" else 53
+def generate_write_sql(table: str="raw"):
+    assert table in {"raw", "avg", "prediction"}, "invalid key"
+
+    meta = {
+        "raw": "team_id, game_date,",
+        "avg": "team_id, write_data, agg_method",
+        "prediction": "game_id, write_date, agg_method"
+    }.get(table)
+
+    num_args = {
+        "raw": 52,
+        "avg": 53,
+        "prediction": 53
+    }.get(table)
+
+    table_name = {
+        "raw": "raw_game_stats",
+        "avg": "avg_game_stats",
+        "prediction": "prediction_data"
+    }.get(table)
+
 
     return   f"""
-            INSERT INTO TABLE RAW_GAME_STATS
+            INSERT INTO TABLE {table_name}
             VALUES ({meta} 
                     blockedShotAttemptsFor,
                     corsiPercentage, 
@@ -136,16 +154,77 @@ def generate_sql(table: str="raw"):
                     xPlayContinuedOutsideZoneFor,
                     xPlayStoppedFor,
                     xReboundsFor
-                    VALUES ({"%s, "*num_args} %s;""",
+                    VALUES ({"%s, "* num_args} %s;""",
 
+def generate_read_avg_sql(team_id: int) -> str:
+    return f"""
+        SELECT
+        blockedShotAttemptsFor,
+        corsiPercentage, 
+        dZoneGiveawaysFor, 
+        faceOffsWonFor,
+        fenwickPercentage,
+        flurryAdjustedxGoalsFor,
+        flurryScoreVenueAdjustedxGoalsFor,
+        freezeFor,
+        giveawaysFor,
+        goalsAgainst,
+        highDangerGoalsFor,
+        highDangerShotsFor,
+        highDangerxGoalsFor,
+        hitsFor,
+        lowDangerGoalsFor,
+        lowDangerShotsFor,
+        lowDangerxGoalsFor,
+        mediumDangerGoalsFor,
+        mediumDangerShotsFor,
+        mediumDangerxGoalsFor,
+        missedShotsFor,
+        penalityMinutesFor,
+        penaltiesFor,
+        playContinuedInZoneFor,
+        playContinuedOutsideZoneFor,
+        playStoppedFor,
+        reboundGoalsFor,
+        reboundsFor,
+        reboundxGoalsFor,
+        savedShotsOnGoalFor,
+        savedUnblockedShotAttemptsFor,
+        scoreAdjustedShotsAttemptsFor,
+        scoreAdjustedTotalShotCreditFor,
+        scoreAdjustedUnblockedShotAttemptsFor,
+        scoreFlurryAdjustedTotalShotCreditFor,
+        scoreVenueAdjustedxGoalsFor,
+        shotAttemptsFor,
+        shotsOnGoalFor,
+        takeawaysFor,
+        totalShotCreditFor,
+        unblockedShotAttemptsFor,
+        xFreezeFor,
+        xGoalsFor,
+        xGoalsFromActualReboundsOfShotsFor,
+        xGoalsFromxReboundsOfShotsFor,
+        xGoalsPercentage,
+        xOnGoalFor,
+        xPlayContinuedInZoneFor,
+        xPlayContinuedOutsideZoneFor,
+        xPlayStoppedFor,
+        xReboundsFor
+        FROM avg_game_stats
+        WHERE team_id = {team_id}
+        ORDER BY write_date DESC LIMIT 1;"
+    """
 def daily_load():
-    yesterday = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    today = datetime.datetime.today()
+    yesterday = (today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
+    # getting all the utilities needed
     yest_games = requests.get(f"https://api-web.nhle.com/v1/score/{yesterday}").json().get("games")
     team_id_map = json.load(open("../config/team-id-map.json", "r"))
     fields_indexes = json.load(open("../configs/fields-and-indexs.json", "r"))
     conn = psycopg.Connection.connect("Add connection params")
 
+    # getting the teams that played the previous day from the response from the NHL API
     teams = set()
     for game in yest_games:
         teams.add(game.get("homeTeam").get("default"))
@@ -153,22 +232,32 @@ def daily_load():
 
     urls = {team: url for team, url in json.load(open("../configs/data-urls.json", "r")).items()  if team in teams}
 
+
     for team, url in urls.items():
         data = requests.get(url).content.decode("utf-8").splitlines()
 
+        #grabbing the latest updated record that is for situation all
         new_row = None
         i = -1
         while not new_row:
             if data[i].split(",")[8] == "all":
                 new_row = data[i].split() 
+        del data
+
+        #getting the data we care about from the new data record
         new_data = [team_id_map.get(team), yesterday]
-        for index in fields_indexes.values():
-            new_data.append(new_row[index])
+        for header in fields_indexes.get("headers"):
+            new_data.append(new_row[fields_indexes.get("index_mappings").get(header)])
 
- 
+
+        """
+        Writing new data to the raw table
+        Getting the last 10 rows from the raw table to generated the new average
+        computing the new averages
+        writing the new averages to the average table
+        """
         with conn.cursor() as cursor:
-            cursor.execute(generate_sql(table="raw"),tuple(new_data))
-
+            cursor.execute(generate_write_sql(table="raw"),tuple(new_data))
             cursor.commit()
 
             query = cursor.execute(f"""
@@ -189,6 +278,36 @@ def daily_load():
         avg_data = [team_id_map.get(team), write_date, agg_method]
         avg_data.extend(avgs)
         with conn.cursor() as cursor:
-            cursor.execute(generate_sql(table="avg"), tuple(avg_data))
+            cursor.execute(generate_write_sql(table="avg"), tuple(avg_data))
             cursor.commit()
+
+    games = requests.get(f"https://api-web.nhle.com/v1/schedule/{today}").get("gameWeek")[0].get("games")
+
+    for game in games:
+        game_id = game.get("id")
+        home_team = game.get("homeTeam").get("placeName").get("default")
+        away_team = game.get("awayTeam").get("placeName").get("default")
+
+        home_id = team_id_map.get(home_team)
+        away_id = team_id_map.get(away_team)
+
+        with conn.cursor() as cursor:
+            query = cursor.execute(generate_read_avg_sql(home_id))
+            home_stats = query.fetchone()
+
+            query = cursor.execute(generate_read_avg_sql(away_id))
+
+            away_stats = query.fetchone()
+
+        new_stats = [game_id, today]
+
+        for i in range(len(home_stats)):
+            new_stats.append(home_stats[i] - away_stats[i])
+
+        new_stats = tuple(new_stats)
+
+        with conn.cursor() as cursor:
+            query = cursor.execute(generate_write_sql("prediction"), new_stats)
+            cursor.commit()
+
 
