@@ -5,12 +5,9 @@ import secrets
 from typing import Union
 
 
-class DB_STATUS(Enum):
-    SUCCESS = 1
-    FAILURE = 0
-
-password_pattern = "^(?=.*?[0-9])(?=.*?[A-Za-z]).{8,32}"
-username_pattern = "^[0-9A-Za-z]{6,16}"
+class PATTERN_CONSTRAINTS(Enum):
+    password_pattern = "^(?=.*?[0-9])(?=.*?[A-Za-z]).{8,32}"
+    username_pattern = "^[0-9A-Za-z]{6,16}"
 
 
 async def write_user(username: str, password: str, connection: pyscopg.Connection.cursor) -> tuple[int, Union[str, None]]:

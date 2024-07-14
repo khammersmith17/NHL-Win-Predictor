@@ -57,3 +57,4 @@ async def create_user(user_data: NewUser, request: Request):
             "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
             "message": "Internal error"
         }
+

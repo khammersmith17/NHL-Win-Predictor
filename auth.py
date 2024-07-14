@@ -1,7 +1,6 @@
 from fastapi import Security, HTTPException, status, Request
 from fastapi.security import APIKeyHeader
-from public_db_utils import get_user, AUTH_STATUS
-from main import cursor
+from routers.public_utils import get_user, AUTH_STATUS
 
 
 api_key_header = APIKeyHeader(name="X-API-KEY")
