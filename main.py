@@ -5,7 +5,7 @@ from http import HTTPStatus
 from auth import auth_user
 from db import db_instance
 from inference import model
-
+import redis
 
 app = FastAPI(
     title="NHL Win Predictor API",
@@ -36,7 +36,9 @@ async def startup():
     await model.get_model()
     app.state.model = model
 
-@app.get('/')
+    app.state.cache = redis.Redis(host="localhost", port=6379, decode_responses=True)
+
+@app.get('/ping')
 async def root():
     return {
             "Status" : HTTPStatus.OK.value,

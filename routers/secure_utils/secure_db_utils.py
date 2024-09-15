@@ -2,7 +2,7 @@ import psycopg
 import hashlib
 import sys
 sys.path.append("..")
-from db_enums import DB_STATUS, AUTH_STATUS
+from ..db_enums import DB_STATUS, AUTH_STATUS
 
 
 async def get_user(api_key: str, connection:  psycopg.AsyncConnection) -> AUTH_STATUS:

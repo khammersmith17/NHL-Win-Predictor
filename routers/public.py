@@ -6,6 +6,7 @@ from public_utils.public_db_utils import (
 import re
 import requests
 import json
+from datetime import datetime
 
 
 router = APIRouter()
@@ -27,7 +28,7 @@ async def get_games(date:str):
         return {
             "statusCode": 200,
             "body": json.dumps({"games": games})
-        } 
+        }
     except:
         return {
             "statusCode": status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -36,7 +37,8 @@ async def get_games(date:str):
 
 @router.get('/score/{game_id}')
 async def get_score(game_id: int):
-    games = requests.get().json()
+    games = requests.get("https://api-web.nhle.com/v1/score/now").json()
+
 
     return {"game_id": game_id}
 
@@ -68,4 +70,35 @@ async def create_user(user_data: NewUser, request: Request):
             "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
             "message": "Internal error"
         }
+
+@router.get("/game_ids/{date}")
+def get_game_ids(date: str):
+    try:
+        assert datetime.strptime(date, "%Y-%m-%d")
+        response = requests.get(f"https://api-web.nhle.com/v1/schedule/{date}").json()
+        games = response.get("gameWeek")[0].get("games")
+        game_ids = [
+                {
+                    "game_id": game.get("id"),
+                    "awayTeam": game.get("awayTeam").get("placeName").get("default"),
+                    "homeTeam": game.get("homeTeam").get("placeName").get("default")
+                }
+                for game in games]
+
+        return {
+            "statusCode": status.HTTP_200_OK,
+            "body": json.dumps(game_ids)
+        }
+
+    except AssertionError:
+        return {
+            "statusCode": status.HTTP_400_BAD_REQUEST,
+            "message": "Invalid datetime format. Accepted: %Y-%m-%d"
+        }
+    except Exception:
+        return {
+            "statusCode": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "message": "Internal Error. Try request again"
+        }
+
 

@@ -1,1 +1,10 @@
 model-dev/data/*
+configs/CHI.csv
+configs/get_int_mapping.py
+current_scores.json
+current_scores2.json
+routers/public_utils/__pycache__
+schedule.json
+test.py
+.venv/*
+dump.rdb
