@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS GAME_PREDICTIONS(
     game_id INT NOT NULL,
     inference_score FLOAT NOT NULL,
     agg_method INT NOT NULL DEFAULT 10,
+    game_date DATE NOT NULL,
     PRIMARY KEY (game_id)
 );
 

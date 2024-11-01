@@ -1,11 +1,20 @@
 from fastapi import FastAPI, Depends
+from contextlib import asynccontextmanager
 from routers import secure, public
 from utils.data_loader import DataLoader
 from http import HTTPStatus
 from auth import auth_user
 from db import db_instance
-from inference import model
 import redis
+
+cache = dict()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cache["redis"] = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    yield
+    cache.clear()
+
 
 app = FastAPI(
     title="NHL Win Predictor API",
@@ -13,7 +22,8 @@ app = FastAPI(
     Uses an XGBoost model and data from MoneyPuck.com.
     Includes some utils that leverage the public NHP API.
     Backend Database is postgres
-    """
+    """,
+    lifespan=lifespan
 )
 
 app.include_router(
@@ -28,21 +38,14 @@ app.include_router(
 )
 
 
-@app.on_event("startup")
-async def startup():
-    await db_instance.connect()
-    app.state.db = db_instance
 
-    await model.get_model()
-    app.state.model = model
 
-    app.state.cache = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 @app.get('/ping')
 async def root():
     return {
-            "Status" : HTTPStatus.OK.value,
-            "message":"Succesful Ping"
+                "Status" : HTTPStatus.OK.value,
+                "message":"Succesful Ping"
             }
 
 
